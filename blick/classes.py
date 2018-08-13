@@ -104,7 +104,7 @@ class BlickLoader:
 
     def assess_word(self, inputword, includeConstraints=False):
         segs = self._syllabify(inputword)  # Syllabify segments
-        segs = ['# '] + segs + ['# ']
+        segs = ['#'] + segs + ['#']
         f = []  # Convert segments into feature sets
         for s in segs:
             f.append(self.segMapping[s])
