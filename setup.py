@@ -10,6 +10,5 @@ setup(
     url='http://pypi.python.org/pypi/python-BLICK/',
     license='LICENSE.txt',
     description='Python implementation of BLICK (a phonotactic probability calculator for English)',
-    long_description=open('README.txt').read(),
     install_requires=[],
 )
