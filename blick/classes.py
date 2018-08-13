@@ -10,20 +10,20 @@ import os
 
 
 class BlickLoader:
-    def __init__(self, grammarType="default", debug=False):
+    def __init__(self, grammarType='default', debug=False):
         self.basedir = os.path.abspath(os.path.dirname(__file__))
         self.debug = debug
         if debug:
             self.init_log()
 
         if debug:
-            self.update_log("Loading syllabification information...")
+            self.update_log('Loading syllabification information...')
         from blick.syllabification import ONSETS, VOWELS
         self.onsets = ONSETS
         self.vowels = VOWELS
 
         if debug:
-            self.update_log("Loading grammar...")
+            self.update_log('Loading grammar...')
         if grammarType == 'HayesWhite':
             from blick.grammars import hayesWhiteConstraints as constraints
         elif grammarType == 'NoStress':
@@ -32,7 +32,7 @@ class BlickLoader:
             from blick.grammars import defaultConstraints as constraints
         self.grammar = constraints
         if debug:
-            self.update_log("Loading natural classes...")
+            self.update_log('Loading natural classes...')
         if grammarType == 'HayesWhite':
             from blick.naturalClasses import hayesWhiteNC as nc
         elif grammarType == 'NoStress':
@@ -41,20 +41,20 @@ class BlickLoader:
             from blick.naturalClasses import defaultNC as nc
         self.segMapping = nc
         if debug:
-            self.update_log("Done initializing!")
+            self.update_log('Done initializing!')
 
     def init_log(self):
-        f = open(os.path.join(self.basedir, "PyBlickLog.txt"), 'w')
-        f.write("Begin operation\n")
+        f = open(os.path.join(self.basedir, 'PyBlickLog.txt'), 'w')
+        f.write('Begin operation\n')
         f.close()
 
     def update_log(self, linetowrite):
-        f = open(os.path.join(self.basedir, "PyBlickLog.txt"), 'a')
-        f.write(linetowrite+"\n")
+        f = open(os.path.join(self.basedir, 'PyBlickLog.txt'), 'a')
+        f.write(linetowrite+'\n')
         f.close()
 
     def _syllabify(self, inputword):
-        segs = inputword.split(" ")
+        segs = inputword.split(' ')
         seglist = []
         cons = []
         # Convert the segment list into a list of Vowels and Consonant lists
@@ -89,22 +89,22 @@ class BlickLoader:
             if i != len(seglist)-1:
                 for j in range(len(s)):
                     # Look for maximal acceptable onsets
-                    if " ".join(s[j:]) in self.onsets:
+                    if ' '.join(s[j:]) in self.onsets:
                         for c in s[:j]:  # Whatever comes before the maximal onset is a coda
-                            returnlist.append(c+"Coda")
+                            returnlist.append(c+'Coda')
                         for o in s[j:]:
                             returnlist.append(o)
                         break
                 else:
-                    returnlist.extend([c+"Coda" for c in s])
+                    returnlist.extend([c+'Coda' for c in s])
             else:  # All consonants at the end are codas
                 for c in s:
-                    returnlist.append(c+"Coda")
+                    returnlist.append(c+'Coda')
         return returnlist
 
-    def assessWord(self, inputword, includeConstraints=False):
+    def assess_word(self, inputword, includeConstraints=False):
         segs = self._syllabify(inputword)  # Syllabify segments
-        segs = ["# "] + segs + ["# "]
+        segs = ['# '] + segs + ['# ']
         f = []  # Convert segments into feature sets
         for s in segs:
             f.append(self.segMapping[s])
@@ -120,53 +120,53 @@ class BlickLoader:
             return score, cons
         return score
 
-    def assessFile(self, path, outpath=None, includeConstraints=False):
+    def assess_file(self, path, outpath=None, includeConstraints=False):
         if outpath is None:
             mod = os.path.split(path)
-            outpath = os.path.join(mod[0], mod[1].replace(".", "-output."))
+            outpath = os.path.join(mod[0], mod[1].replace('.', '-output.'))
         if self.debug:
-            self.update_log(" ".join(["Assessing", os.path.abspath(path)]))
+            self.update_log(' '.join(['Assessing', os.path.abspath(path)]))
         if self.debug:
             self.update_log(
-                " ".join(["Creating output file", os.path.abspath(outpath)]))
+                ' '.join(['Creating output file', os.path.abspath(outpath)]))
         with open(outpath, 'w') as outf:
             with open(path, 'r') as inf:
                 for line in inf:
-                    line = line.strip().split("\t")
+                    line = line.strip().split('\t')
                     segs = line[0].strip()
                     outline = [segs]
                     if includeConstraints:
-                        score, cons = self.assessWord(
+                        score, cons = self.assess_word(
                             segs, includeConstraints=True)
                         outline.extend([str(score), ', '.join(cons)])
                     else:
-                        score = self.assessWord(segs)
+                        score = self.assess_word(segs)
                         outline.append(str(score))
-                    outf.write("\t".join(outline+line[1:]))
-                    outf.write("\n")
+                    outf.write('\t'.join(outline+line[1:]))
+                    outf.write('\n')
         if self.debug:
             self.update_log(
-                " ".join(["Finished assessing", os.path.abspath(path)]))
+                ' '.join(['Finished assessing', os.path.abspath(path)]))
 
 
 class Constraint:
     def __init__(self, textdesc, score, tier='default'):
         self.score = score
         self.tier = tier
-        if self.tier == "Main":  # Features that determine inclusion in a tier
+        if self.tier == 'Main':  # Features that determine inclusion in a tier
             self.tierFeats = set(['+mainstress'])
-        elif self.tier == "Stress":
+        elif self.tier == 'Stress':
             self.tierFeats = set(['+stress'])
-        elif self.tier == "Syllable":
+        elif self.tier == 'Syllable':
             self.tierFeats = set(['+syllabic'])
         else:
             self.tierFeats = set([])
         # Convert description of constraint into feature sets
-        desc = textdesc.split("][")
+        desc = textdesc.split('][')
         self.description = []
         for i in desc:
             self.description.append(
-                set(i.replace("]", "").replace("[", "").split(", ")))
+                set(i.replace(']', '').replace('[', '').split(', ')))
 
     def _getTierSegs(self, segs):
         tierSegs = []
@@ -180,12 +180,12 @@ class Constraint:
             segs = self._getTierSegs(segs)
         wLength = len(self.description)
         if wLength > 1:  # Create all possible comparisons based on window length of constraint
-            assessList = [segs[i:i+wLength]
+            assess_list = [segs[i:i+wLength]
                           for i in range(len(segs)-(wLength-1))]
         else:
-            assessList = [segs[i:i+1] for i in range(len(segs)-1)]
+            assess_list = [segs[i:i+1] for i in range(len(segs)-1)]
         score = 0.0
-        for w in assessList:
+        for w in assess_list:
             match = True
             # Compare all feature sets of a constraint to the corresponding feature sets of segments
             for i in range(wLength):
@@ -211,5 +211,5 @@ class Constraint:
         output += self.writeDescription()
         output += ' ( ' + str(self.score)+')'
         if self.tier != 'default':
-            output += ' (' + self.tier+" tier)"
+            output += ' (' + self.tier+' tier)'
         return output
