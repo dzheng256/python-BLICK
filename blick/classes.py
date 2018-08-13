@@ -8,8 +8,9 @@ Modified: 2018-08-12
 '''
 import os
 
+
 class BlickLoader:
-    def __init__(self,grammarType="default",debug=False):
+    def __init__(self, grammarType="default", debug=False):
         self.basedir = os.path.abspath(os.path.dirname(__file__))
         self.debug = debug
         if debug:
@@ -17,7 +18,7 @@ class BlickLoader:
 
         if debug:
             self.update_log("Loading syllabification information...")
-        from blick.syllabification import ONSETS,VOWELS
+        from blick.syllabification import ONSETS, VOWELS
         self.onsets = ONSETS
         self.vowels = VOWELS
 
@@ -43,16 +44,16 @@ class BlickLoader:
             self.update_log("Done initializing!")
 
     def init_log(self):
-        f = open(os.path.join(self.basedir,"PyBlickLog.txt"),'w')
+        f = open(os.path.join(self.basedir, "PyBlickLog.txt"), 'w')
         f.write("Begin operation\n")
         f.close()
 
-    def update_log(self,linetowrite):
-        f = open(os.path.join(self.basedir,"PyBlickLog.txt"),'a')
+    def update_log(self, linetowrite):
+        f = open(os.path.join(self.basedir, "PyBlickLog.txt"), 'a')
         f.write(linetowrite+"\n")
         f.close()
 
-    def _syllabify(self,inputword):
+    def _syllabify(self, inputword):
         segs = inputword.split(" ")
         seglist = []
         cons = []
@@ -62,94 +63,97 @@ class BlickLoader:
                 if cons != []:
                     seglist.append(cons)
                     cons = []
-                seglist.append(s) # Vowels appended as strings
+                seglist.append(s)  # Vowels appended as strings
             else:
-                cons.append(s) # Consonant(s) are appended as lists
+                cons.append(s)  # Consonant(s) are appended as lists
         # Deal with leftover segment at the end
         if cons != []:
             seglist.append(cons)
-        # At this point, seglist should look like: [['C','C'],'V',['C'],'V','V']
+        # At this point,  seglist should look like:
+        # [['C', 'C'], 'V', ['C'], 'V', 'V']
         # Make Consonants either onsets or codas
         returnlist = []
-        VowAdded = False # Tracks whether the first vowel is present
+        VowAdded = False  # Tracks whether the first vowel is present
         for i in range(len(seglist)):
             s = seglist[i]
-            if not isinstance(s,list): # Append vowels as is
+            # Append vowels as is
+            if not isinstance(s, list):
                 returnlist.append(s)
                 VowAdded = True
                 continue
-            if not VowAdded: # If a vowel hasn't been found yet, everything is an onset
+            # If a vowel hasn't been found yet,  everything is an onset
+            if not VowAdded:
                 for o in s:
                     returnlist.append(o)
                 continue
             if i != len(seglist)-1:
                 for j in range(len(s)):
-                    if " ".join(s[j:]) in self.onsets: # Look for maximal acceptable onsets
-                        for c in s[:j]: # Whatever comes before the maximal onset is a coda
+                    # Look for maximal acceptable onsets
+                    if " ".join(s[j:]) in self.onsets:
+                        for c in s[:j]:  # Whatever comes before the maximal onset is a coda
                             returnlist.append(c+"Coda")
                         for o in s[j:]:
                             returnlist.append(o)
                         break
                 else:
                     returnlist.extend([c+"Coda" for c in s])
-            else: # All consonants at the end are codas
+            else:  # All consonants at the end are codas
                 for c in s:
                     returnlist.append(c+"Coda")
         return returnlist
 
-
-
-    def assessWord(self,inputword,includeConstraints=False):
-        segs = self._syllabify(inputword) # Syllabify segments
+    def assessWord(self, inputword, includeConstraints=False):
+        segs = self._syllabify(inputword)  # Syllabify segments
         segs = ["# "] + segs + ["# "]
-        f = [] # Convert segments into feature sets
+        f = []  # Convert segments into feature sets
         for s in segs:
             f.append(self.segMapping[s])
         score = 0.0
         cons = []
-        # For each constraint, evaluate the word and sum scores on each constraint
+        # For each constraint,  evaluate the word and sum scores on each constraint
         for c in self.grammar:
             cScore = c.assess(f)
             if cScore != 0.0:
                 score += cScore
                 cons.append(str(c))
         if includeConstraints:
-            return score,cons
+            return score, cons
         return score
 
-    def assessFile(self,path,outpath=None,includeConstraints=False):
+    def assessFile(self, path, outpath=None, includeConstraints=False):
         if outpath is None:
             mod = os.path.split(path)
-            outpath = os.path.join(mod[0],mod[1].replace(".","-output."))
+            outpath = os.path.join(mod[0], mod[1].replace(".", "-output."))
         if self.debug:
-            self.update_log(" ".join(["Assessing",os.path.abspath(path)]))
+            self.update_log(" ".join(["Assessing", os.path.abspath(path)]))
         if self.debug:
-            self.update_log(" ".join(["Creating output file",os.path.abspath(outpath)]))
-        with open(outpath,'w') as outf:
-            with open(path,'r') as inf:
+            self.update_log(
+                " ".join(["Creating output file", os.path.abspath(outpath)]))
+        with open(outpath, 'w') as outf:
+            with open(path, 'r') as inf:
                 for line in inf:
-                    # if self.debug:
-                    #     if i % 50 == 0:
-                    #         self.update_log(" ".join(['Done with item',str(i),'of',str(len(inputF))]))
                     line = line.strip().split("\t")
                     segs = line[0].strip()
                     outline = [segs]
                     if includeConstraints:
-                        score,cons = self.assessWord(segs,includeConstraints=True)
-                        outline.extend([str(score),','.join(cons)])
+                        score, cons = self.assessWord(
+                            segs, includeConstraints=True)
+                        outline.extend([str(score), ', '.join(cons)])
                     else:
                         score = self.assessWord(segs)
                         outline.append(str(score))
                     outf.write("\t".join(outline+line[1:]))
                     outf.write("\n")
         if self.debug:
-            self.update_log(" ".join(["Finished assessing",os.path.abspath(path)]))
+            self.update_log(
+                " ".join(["Finished assessing", os.path.abspath(path)]))
+
 
 class Constraint:
-    def __init__(self,textdesc,score,tier='default'):
+    def __init__(self, textdesc, score, tier='default'):
         self.score = score
         self.tier = tier
-        if self.tier == "Main": # Features that determine inclusion in a tier
+        if self.tier == "Main":  # Features that determine inclusion in a tier
             self.tierFeats = set(['+mainstress'])
         elif self.tier == "Stress":
             self.tierFeats = set(['+stress'])
@@ -161,33 +165,36 @@ class Constraint:
         desc = textdesc.split("][")
         self.description = []
         for i in desc:
-            self.description.append(set(i.replace("]","").replace("[","").split(",")))
+            self.description.append(
+                set(i.replace("]", "").replace("[", "").split(", ")))
 
-    def _getTierSegs(self,segs):
+    def _getTierSegs(self, segs):
         tierSegs = []
         for s in segs:
             if s >= self.tierFeats or s == set(['+word_boundary']):
                 tierSegs.append(s)
         return tierSegs
 
-    def assess(self,segs):
-        if self.tier != 'default': # Only look at segments relevant for a tier
+    def assess(self, segs):
+        if self.tier != 'default':  # Only look at segments relevant for a tier
             segs = self._getTierSegs(segs)
         wLength = len(self.description)
-        if wLength > 1: # Create all possible comparisons based on window length of constraint
-            assessList = [segs[i:i+wLength] for i in range(len(segs)-(wLength-1))]
+        if wLength > 1:  # Create all possible comparisons based on window length of constraint
+            assessList = [segs[i:i+wLength]
+                          for i in range(len(segs)-(wLength-1))]
         else:
             assessList = [segs[i:i+1] for i in range(len(segs)-1)]
         score = 0.0
         for w in assessList:
             match = True
-            for i in range(wLength): # Compare all feature sets of a constraint to the corresponding feature sets of segments
+            # Compare all feature sets of a constraint to the corresponding feature sets of segments
+            for i in range(wLength):
                 # If the constraint feature sets are not subsets of the segment feature set
                 # then that comparison doesn't meet constraint criteria
                 if len(self.description[i] - w[i]) != 0:
                     match = False
                     break
-            if match: # For each match, find the product of number of instances and the score
+            if match:  # For each match,  find the product of number of instances and the score
                 score += self.score
         return score
 
@@ -195,14 +202,14 @@ class Constraint:
         output = ''
         for x in self.description:
             output += '['
-            output += ','.join(x)
+            output += ', '.join(x)
             output += ']'
         return output
 
-    def __str__(self): # Recreate string description of constraint
+    def __str__(self):  # Recreate string description of constraint
         output = '*'
         output += self.writeDescription()
-        output += ' ('+str(self.score)+')'
+        output += ' ( ' + str(self.score)+')'
         if self.tier != 'default':
-            output += ' ('+ self.tier+" tier)"
+            output += ' (' + self.tier+" tier)"
         return output
